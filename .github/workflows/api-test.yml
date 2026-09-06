@@ -1,0 +1,46 @@
+name: API Automated Tests
+
+# กำหนดให้ระบบทำงานเมื่อมีการ Push หรือสร้าง Pull Request เข้า branch 'main'
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. ดึงโค้ดล่าสุดจาก Repository ของคุณ
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # 2. ติดตั้ง Node.js สำหรับรัน API
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20" # ใช้ Node.js เวอร์ชัน 20
+
+      # 3. ติดตั้ง Java สำหรับรัน Karate Standalone JAR
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      # 4. ติดตั้ง Dependencies ของ Node.js (เช่น express, bcryptjs)
+      - name: Install Dependencies
+        run: npm install
+
+      # 5. เปิดรัน API Server ทิ้งไว้เบื้องหลัง (สังเกตเครื่องหมาย &)
+      - name: Start API Server
+        run: node server.js &
+
+      # 6. หน่วงเวลา 3 วินาที เพื่อรอให้เซิร์ฟเวอร์บูทเสร็จสมบูรณ์
+      - name: Wait for API to boot
+        run: sleep 3
+
+      # 7. รันสคริปต์ทดสอบ Karate
+      - name: Run Karate E2E Tests
+        run: java -jar karate-2.1.2.jar test/all-tests.feature

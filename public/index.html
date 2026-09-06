@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sign in</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #1B1F2A;
+    --panel: #242938;
+    --panel-border: #33394A;
+    --text: #E8EAF0;
+    --text-dim: #9BA3B4;
+    --accent: #F2B705;
+    --accent-dim: #7A6413;
+    --danger: #F2705A;
+    --success: #6FCF97;
+    --radius: 10px;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    height: 100%;
+    margin: 0;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', system-ui, sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+
+  .scene {
+    width: 100%;
+    max-width: 380px;
+  }
+
+  .brand {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 28px;
+  }
+
+  .brand-mark {
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    background: var(--accent);
+    transform: rotate(45deg);
+    flex: none;
+  }
+
+  .brand-name {
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    color: var(--text-dim);
+  }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: var(--radius);
+    padding: 32px 28px 28px;
+  }
+
+  h1 {
+    font-size: 22px;
+    font-weight: 600;
+    margin: 0 0 4px;
+    letter-spacing: -0.01em;
+  }
+
+  .subtitle {
+    font-size: 14px;
+    color: var(--text-dim);
+    margin: 0 0 24px;
+    line-height: 1.5;
+  }
+
+  .tabs {
+    display: flex;
+    gap: 2px;
+    background: var(--bg);
+    border-radius: 8px;
+    padding: 3px;
+    margin-bottom: 24px;
+  }
+
+  .tab {
+    flex: 1;
+    text-align: center;
+    padding: 8px 0;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-dim);
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+
+  .tab.active {
+    background: var(--panel-border);
+    color: var(--text);
+  }
+
+  form {
+    display: none;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  form.active {
+    display: flex;
+  }
+
+  label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-dim);
+    display: block;
+    margin-bottom: 6px;
+  }
+
+  input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--panel-border);
+    border-radius: 7px;
+    padding: 10px 12px;
+    font-size: 14px;
+    color: var(--text);
+    font-family: inherit;
+    transition: border-color 0.15s ease;
+  }
+
+  input:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+
+  input:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+
+  .field-hint {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-top: 6px;
+  }
+
+  button.submit {
+    margin-top: 4px;
+    background: var(--accent);
+    color: #1B1F2A;
+    border: none;
+    border-radius: 7px;
+    padding: 11px 0;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: filter 0.15s ease;
+  }
+
+  button.submit:hover {
+    filter: brightness(1.08);
+  }
+
+  button.submit:active {
+    filter: brightness(0.95);
+  }
+
+  button.submit:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+
+  .message {
+    margin-top: 16px;
+    font-size: 13px;
+    line-height: 1.5;
+    padding: 10px 12px;
+    border-radius: 7px;
+    display: none;
+  }
+
+  .message.show {
+    display: block;
+  }
+
+  .message.error {
+    background: rgba(242, 112, 90, 0.12);
+    color: var(--danger);
+    border: 1px solid rgba(242, 112, 90, 0.3);
+  }
+
+  .message.success {
+    background: rgba(111, 207, 151, 0.12);
+    color: var(--success);
+    border: 1px solid rgba(111, 207, 151, 0.3);
+  }
+
+  .session {
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid var(--panel-border);
+  }
+
+  .session-label {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+  }
+
+  .session-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .session-email {
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  .logout-link {
+    font-size: 13px;
+    color: var(--accent);
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+    padding: 0;
+  }
+
+  .logout-link:hover {
+    text-decoration: underline;
+  }
+
+  .token-box {
+    margin-top: 12px;
+    background: var(--bg);
+    border: 1px solid var(--panel-border);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 11px;
+    color: var(--text-dim);
+    word-break: break-all;
+    max-height: 60px;
+    overflow-y: auto;
+  }
+
+  .user-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--bg);
+    border: 1px solid var(--panel-border);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 13px;
+  }
+
+  .user-row .uid {
+    color: var(--text-dim);
+    font-size: 12px;
+  }
+
+  .server-note {
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-top: 20px;
+  }
+
+  .server-note code {
+    color: var(--text);
+    background: var(--panel);
+    padding: 1px 5px;
+    border-radius: 4px;
+  }
+</style>
+</head>
+<body>
+
+<div class="scene">
+  <div class="brand">
+    <span class="brand-mark"></span>
+    <span class="brand-name">Practice Login</span>
+  </div>
+
+  <div class="card">
+    <div id="loggedOutView">
+      <h1>Welcome back</h1>
+      <p class="subtitle">Sign in or create an account to test the login system.</p>
+
+      <div class="tabs">
+        <button class="tab active" data-tab="login">Sign in</button>
+        <button class="tab" data-tab="register">Create account</button>
+      </div>
+
+      <form id="loginForm" class="active">
+        <div>
+          <label for="loginEmail">Email</label>
+          <input type="email" id="loginEmail" autocomplete="email" required />
+        </div>
+        <div>
+          <label for="loginPassword">Password</label>
+          <input type="password" id="loginPassword" autocomplete="current-password" required />
+        </div>
+        <button type="submit" class="submit">Sign in</button>
+      </form>
+
+      <form id="registerForm">
+        <div>
+          <label for="registerEmail">Email</label>
+          <input type="email" id="registerEmail" autocomplete="email" required />
+        </div>
+        <div>
+          <label for="registerPassword">Password</label>
+          <input type="password" id="registerPassword" autocomplete="new-password" required minlength="6" />
+          <p class="field-hint">At least 6 characters.</p>
+        </div>
+        <button type="submit" class="submit">Create account</button>
+      </form>
+
+      <div id="message" class="message"></div>
+    </div>
+
+    <div id="loggedInView" style="display:none;">
+      <h1>Signed in</h1>
+      <p class="subtitle">Your session is active. This confirms the API accepted your token.</p>
+
+      <div class="session-row">
+        <span class="session-email" id="sessionEmail"></span>
+        <button class="logout-link" id="logoutBtn">Sign out</button>
+      </div>
+      <div class="session-label" style="margin-top:16px;">Session token</div>
+      <div class="token-box" id="tokenBox"></div>
+
+      <div class="session">
+        <div class="session-label">Update profile (PUT)</div>
+        <form id="updateForm" class="active" style="gap:12px;">
+          <div>
+            <label for="updateEmail">New email</label>
+            <input type="email" id="updateEmail" placeholder="Leave blank to keep current" autocomplete="email" />
+          </div>
+          <div>
+            <label for="updatePassword">New password</label>
+            <input type="password" id="updatePassword" placeholder="Leave blank to keep current" autocomplete="new-password" minlength="6" />
+          </div>
+          <button type="submit" class="submit">Save changes</button>
+        </form>
+        <div id="updateMessage" class="message"></div>
+      </div>
+
+      <div class="session">
+        <div class="session-label">Delete account (DELETE)</div>
+        <p class="field-hint" style="margin:0 0 12px;">This permanently removes your account from the server.</p>
+        <button id="deleteBtn" class="submit" style="background:var(--danger); color:#1B1F2A;">Delete my account</button>
+        <div id="deleteMessage" class="message"></div>
+      </div>
+    </div>
+
+    <div class="session" style="border-top:1px solid var(--panel-border); margin-top:20px; padding-top:20px;">
+      <div class="session-row">
+        <div class="session-label" style="margin:0;">All registered users (public, no login needed)</div>
+        <button class="logout-link" id="refreshUsersBtn">Refresh</button>
+      </div>
+      <div id="usersList" style="margin-top:12px; display:flex; flex-direction:column; gap:6px;"></div>
+      <div class="session-row" style="margin-top:12px;">
+        <button class="logout-link" id="prevPageBtn">&larr; Prev</button>
+        <span class="field-hint" id="pageInfo" style="margin:0;"></span>
+        <button class="logout-link" id="nextPageBtn">Next &rarr;</button>
+      </div>
+      <div id="usersMessage" class="message"></div>
+    </div>
+  </div>
+
+  <p class="server-note">Expects the API running at <code>http://localhost:3000</code></p>
+</div>
+
+<script>
+  const API_BASE = 'http://localhost:3000';
+
+  const loggedOutView = document.getElementById('loggedOutView');
+  const loggedInView = document.getElementById('loggedInView');
+  const tabs = document.querySelectorAll('.tab');
+  const loginForm = document.getElementById('loginForm');
+  const registerForm = document.getElementById('registerForm');
+  const messageEl = document.getElementById('message');
+  const sessionEmail = document.getElementById('sessionEmail');
+  const tokenBox = document.getElementById('tokenBox');
+  const logoutBtn = document.getElementById('logoutBtn');
+
+  tabs.forEach((tab) => {
+    tab.addEventListener('click', () => {
+      tabs.forEach((t) => t.classList.remove('active'));
+      tab.classList.add('active');
+      const target = tab.dataset.tab;
+      loginForm.classList.toggle('active', target === 'login');
+      registerForm.classList.toggle('active', target === 'register');
+      hideMessage();
+    });
+  });
+
+  function showMessage(text, type) {
+    messageEl.textContent = text;
+    messageEl.className = `message show ${type}`;
+  }
+
+  function hideMessage() {
+    messageEl.className = 'message';
+  }
+
+  function showSession(email, token) {
+    loggedOutView.style.display = 'none';
+    loggedInView.style.display = 'block';
+    sessionEmail.textContent = email;
+    tokenBox.textContent = token;
+  }
+
+  function showLoggedOut() {
+    loggedInView.style.display = 'none';
+    loggedOutView.style.display = 'block';
+    loginForm.reset();
+    registerForm.reset();
+  }
+
+  let currentToken = null;
+
+  loginForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    hideMessage();
+    const email = document.getElementById('loginEmail').value;
+    const password = document.getElementById('loginPassword').value;
+    const submitBtn = loginForm.querySelector('button');
+    submitBtn.disabled = true;
+
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        showMessage(data.error || 'Sign in failed.', 'error');
+        return;
+      }
+
+      currentToken = data.token;
+      showSession(data.user.email, data.token);
+      loadUsers(1);
+    } catch (err) {
+      showMessage('Could not reach the API. Is the server running on localhost:3000?', 'error');
+    } finally {
+      submitBtn.disabled = false;
+    }
+  });
+
+  registerForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    hideMessage();
+    const email = document.getElementById('registerEmail').value;
+    const password = document.getElementById('registerPassword').value;
+    const submitBtn = registerForm.querySelector('button');
+    submitBtn.disabled = true;
+
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        showMessage(data.error || 'Could not create account.', 'error');
+        return;
+      }
+
+      showMessage('Account created. You can sign in now.', 'success');
+      tabs[0].click();
+      document.getElementById('loginEmail').value = email;
+    } catch (err) {
+      showMessage('Could not reach the API. Is the server running on localhost:3000?', 'error');
+    } finally {
+      submitBtn.disabled = false;
+    }
+  });
+
+  const updateForm = document.getElementById('updateForm');
+  const updateMessage = document.getElementById('updateMessage');
+  const deleteBtn = document.getElementById('deleteBtn');
+  const deleteMessage = document.getElementById('deleteMessage');
+
+  function flashMessage(el, text, type) {
+    el.textContent = text;
+    el.className = `message show ${type}`;
+  }
+
+  updateForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    updateMessage.className = 'message';
+    const email = document.getElementById('updateEmail').value.trim();
+    const password = document.getElementById('updatePassword').value.trim();
+    const submitBtn = updateForm.querySelector('button');
+
+    if (!email && !password) {
+      flashMessage(updateMessage, 'Enter a new email or password first.', 'error');
+      return;
+    }
+
+    submitBtn.disabled = true;
+    try {
+      const body = {};
+      if (email) body.email = email;
+      if (password) body.password = password;
+
+      const res = await fetch(`${API_BASE}/api/auth/profile`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${currentToken}`,
+        },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        flashMessage(updateMessage, data.error || 'Update failed.', 'error');
+        return;
+      }
+
+      sessionEmail.textContent = data.email;
+      flashMessage(updateMessage, 'Profile updated.', 'success');
+      updateForm.reset();
+    } catch (err) {
+      flashMessage(updateMessage, 'Could not reach the API.', 'error');
+    } finally {
+      submitBtn.disabled = false;
+    }
+  });
+
+  deleteBtn.addEventListener('click', async () => {
+    deleteMessage.className = 'message';
+    const confirmed = window.confirm('Delete your account? This cannot be undone.');
+    if (!confirmed) return;
+
+    deleteBtn.disabled = true;
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/profile`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${currentToken}` },
+      });
+
+      if (res.status !== 204) {
+        const data = await res.json().catch(() => ({}));
+        flashMessage(deleteMessage, data.error || 'Delete failed.', 'error');
+        deleteBtn.disabled = false;
+        return;
+      }
+      
+      currentToken = null;
+      showLoggedOut();
+      showMessage('Account deleted.', 'success');
+
+      window.location.reload();
+    } catch (err) {
+      flashMessage(deleteMessage, 'Could not reach the API.', 'error');
+      deleteBtn.disabled = false;
+    }
+  });
+
+  const usersList = document.getElementById('usersList');
+  const usersMessage = document.getElementById('usersMessage');
+  const pageInfo = document.getElementById('pageInfo');
+  const refreshUsersBtn = document.getElementById('refreshUsersBtn');
+  const prevPageBtn = document.getElementById('prevPageBtn');
+  const nextPageBtn = document.getElementById('nextPageBtn');
+
+  const USERS_PER_PAGE = 5;
+  let currentPage = 1;
+  let totalPages = 1;
+
+  async function loadUsers(page) {
+    usersMessage.className = 'message';
+    try {
+      const res = await fetch(`${API_BASE}/api/users?page=${page}&limit=${USERS_PER_PAGE}`);
+      const data = await res.json();
+
+      if (!res.ok) {
+        flashMessage(usersMessage, data.error || 'Could not load users.', 'error');
+        return;
+      }
+
+      currentPage = data.page;
+      totalPages = data.totalPages;
+
+      usersList.innerHTML = '';
+      data.data.forEach((u) => {
+        const row = document.createElement('div');
+        row.className = 'user-row';
+        row.innerHTML = `<span>${u.email}</span><span class="uid">id: ${u.id} &middot; pwd: ${u.password} &middot; hash: ${u.passwordHash.slice(0, 20)}&hellip;</span>`;
+        usersList.appendChild(row);
+      });
+
+      pageInfo.textContent = `Page ${data.page} of ${data.totalPages} (${data.total} total)`;
+      prevPageBtn.style.visibility = currentPage <= 1 ? 'hidden' : 'visible';
+      nextPageBtn.style.visibility = currentPage >= totalPages ? 'hidden' : 'visible';
+    } catch (err) {
+      flashMessage(usersMessage, 'Could not reach the API.', 'error');
+    }
+  }
+
+  refreshUsersBtn.addEventListener('click', () => loadUsers(currentPage));
+  prevPageBtn.addEventListener('click', () => {
+    if (currentPage > 1) loadUsers(currentPage - 1);
+  });
+  nextPageBtn.addEventListener('click', () => {
+    if (currentPage < totalPages) loadUsers(currentPage + 1);
+  });
+
+  // The users list is public, so load it as soon as the page opens
+  loadUsers(1);
+
+  logoutBtn.addEventListener('click', async () => {
+    if (!currentToken) return;
+    try {
+      await fetch(`${API_BASE}/api/auth/logout`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${currentToken}` },
+      });
+    } catch (err) {
+      // ignore network errors on logout, still clear local session
+    } finally {
+      currentToken = null;
+      showLoggedOut();
+    }
+  });
+</script>
+
+</body>
+</html>
