@@ -44,3 +44,11 @@ jobs:
       # 7. รันสคริปต์ทดสอบ Karate
       - name: Run Karate E2E Tests
         run: java -jar karate-2.1.2.jar test/all-tests.feature
+
+        # 8. บันทึกและอัปโหลดโฟลเดอร์ Report เป็น Artifact
+- name: Upload Karate Report
+  uses: actions/upload-artifact@v4
+  if: always() 
+  with:
+    name: karate-test-report
+    path: target/karate-reports/
