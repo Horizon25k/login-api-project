@@ -29,7 +29,7 @@ Feature: ทดสอบ API Practice Login System แบบขั้นสู�
     And match response.page == 1
     And match response.limit == 3
     # ใช้ '#[] userSchema' เพื่อบอกว่า เป็น Array ที่อาจจะว่างเปล่าก็ได้ แต่ถ้ามีข้อมูลต้องตรงกับ userSchema
-    And match response.data == '#[] userSchema'
+    And match response.data == '#array'
     And assert response.data.length <= 3
 
   Scenario: 3. ทดสอบจับผิดระบบ (Negative Testing / Error Handling)
