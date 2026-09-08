@@ -20,7 +20,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20" # ใช้ Node.js เวอร์ชัน 20
+          node-version: "20"
 
       # 3. ติดตั้ง Java สำหรับรัน Karate Standalone JAR
       - name: Setup Java
