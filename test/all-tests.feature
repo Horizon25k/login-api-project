@@ -1,81 +1,81 @@
-Feature: ทดสอบ API ระบบ Practice Login System แบบครบวงจร (Full E2E)
+Feature: ทดสอบ API ตามฟังก์ชันการทำงานพื้นฐาน 
 
   Background:
-    # กำหนด Base URL
     * url 'http://localhost:3000/api'
-  
-    # ใช้ UUID สร้างค่าสุ่มเพื่อป้องกันอีเมลซ้ำในการรันเทสแต่ละรอบ
-    * def randomString = java.util.UUID.randomUUID().toString()
-    * def testEmail = 'user_' + randomString + '@example.com'
-    * def initialPassword = 'password123'
-    * def updatedPassword = 'newpassword456'
 
-  Scenario: 1. ทดสอบ API พื้นฐานที่ไม่ต้องการการเข้าสู่ระบบ (Public Endpoints)
-  
-    # 1.1 ตรวจสอบสถานะเซิร์ฟเวอร์ (Health Check)
-    Given path 'health'
-    When method get
-    Then status 200
-    And match response.status == 'ok'
-
-    # 1.2 เรียกดูรายชื่อผู้ใช้ทั้งหมด (Get Users)
-    Given path 'users'
-    And param page = 1
-    And param limit = 5
-    When method get
-    Then status 200
-    And match response.data == '#array'
-    And match response.page == 1
-
-  Scenario: 2. ทดสอบวงจรผู้ใช้ตั้งแต่สร้างจนถึงลบบัญชี
+    @CreateProfile
+  Scenario: CreateProfile
+    * def randomUUID = function(){ return java.util.UUID.randomUUID().toString() }
+    * def generatedEmail = 'test_' + randomUUID() + '@example.com'
+    * def generatedPassword = 'password123'
   
     Given path 'auth/register'
-    And request { email: '#(testEmail)', password: '#(initialPassword)' }
+    And request { email: '#(generatedEmail)', password: '#(generatedPassword)' }
     When method post
     Then status 201
+    And match response.email == generatedEmail
 
-    # --- (Login) ---
+    @LoginProfile
+  Scenario: LoginProfile
+    # เรียกใช้งานผ่าน Tag @CreateProfile
+    * def setup = call read('all-tests.feature@CreateProfile')
+    * def loginEmail = setup.generatedEmail
+    * def loginPassword = setup.generatedPassword
+
     Given path 'auth/login'
-    And request { email: '#(testEmail)', password: '#(initialPassword)' }
+    And request { email: '#(loginEmail)', password: '#(loginPassword)' }
     When method post
     Then status 200
-    * def firstToken = response.token
+    And match response.token == '#notnull'
+    * def authToken = response.token
+    * def activeEmail = loginEmail
 
-    # --- (Get Profile) ---
+    @CheckProfile
+  Scenario: CheckProfile
+    * def auth = call read('all-tests.feature@LoginProfile')
+
     Given path 'auth/profile'
-    And header Authorization = 'Bearer ' + firstToken
+    And header Authorization = 'Bearer ' + auth.authToken
     When method get
     Then status 200
+    And match response.email == auth.activeEmail
 
-    # --- (Update Profile) ---
+    @UpdateProfile
+  Scenario: UpdateProfile
+    * def auth = call read('all-tests.feature@LoginProfile')
+    * def randomUUID = function(){ return java.util.UUID.randomUUID().toString() }
+    * def newEmail = 'updated_' + randomUUID() + '@example.com'
+
     Given path 'auth/profile'
-    And header Authorization = 'Bearer ' + firstToken
-    * def updatedEmail = 'new_' + testEmail 
-    And request { email: '#(updatedEmail)', password: '#(updatedPassword)' }
+    And header Authorization = 'Bearer ' + auth.authToken
+    And request { email: '#(newEmail)', password: 'newPassword456' }
     When method put
     Then status 200
+    And match response.email == newEmail
 
-    # --- (Logout Token 1) ---
-    Given path 'auth/logout'
-    And header Authorization = 'Bearer ' + firstToken
-    When method post
-    Then status 200
+    @DeleteProfile
+  Scenario: DeleteProfile
+    * def auth = call read('all-tests.feature@LoginProfile')
 
-    # ---(Login 2) ---
-    Given path 'auth/login'
-    And request { email: '#(updatedEmail)', password: '#(updatedPassword)' }
-    When method post
-    Then status 200
-    * def secondToken = response.token
-
-    # --- (Delete Profile) ---
     Given path 'auth/profile'
-    And header Authorization = 'Bearer ' + secondToken
+    And header Authorization = 'Bearer ' + auth.authToken
     When method delete
     Then status 204
 
-    # --- ตรวจสอบว่าบัญชีถูกลบไปแล้วจริงๆ ---
-    Given path 'auth/login'
-    And request { email: '#(updatedEmail)', password: '#(updatedPassword)' }
+    @Logout
+  Scenario: Logout
+    * def auth = call read('all-tests.feature@LoginProfile')
+
+    Given path 'auth/logout'
+    And header Authorization = 'Bearer ' + auth.authToken
     When method post
-    Then status 401
+    Then status 200
+
+    @GetUsers
+  Scenario: GetUsers
+    Given path 'users'
+    And param page = 1
+    And param limit = 10
+    When method get
+    Then status 200
+    And match response.data == '#array'
