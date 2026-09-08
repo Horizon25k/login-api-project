@@ -59,7 +59,7 @@ Feature: ทดสอบ API ระบบ Practice Login System แบบคร�
     Given path 'auth/logout'
     And header Authorization = 'Bearer ' + firstToken
     When method post
-    Then status 200
+    Then status 401
 
     # ---(Login 2) ---
     Given path 'auth/login'
