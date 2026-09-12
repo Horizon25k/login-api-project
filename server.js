@@ -13,12 +13,26 @@
  *   GET    /api/health         -> simple health check
  */
 
+require('dotenv').config();
 const express = require('express');
+const mysql = require('mysql2/promise');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const path = require('path');
 
 const app = express();
 app.use(express.json());
+
+// Database Connection Pool
+const pool = mysql.createPool({
+  host: process.env.DB_HOST || 'localhost',
+  user: process.env.DB_USER || 'root',
+  password: process.env.DB_PASSWORD || '',
+  database: process.env.DB_NAME || 'login_project',
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0
+});
 
 // Allow the front-end page (served from this same app, or opened as a file) to call the API
 app.use((req, res, next) => {
@@ -29,31 +43,39 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(express.static(require('path').join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public')));
 
 const PORT = process.env.PORT || 3000;
-const JWT_SECRET = 'practice-secret-do-not-use-in-production';
+const JWT_SECRET = process.env.JWT_SECRET || 'practice-secret-do-not-use-in-production';
+const BCRYPT_SALT_ROUNDS = parseInt(process.env.BCRYPT_SALT_ROUNDS) || 8;
 
-// In-memory "database"
-const users = []; // { id, email, passwordHash }
-const revokedTokens = new Set();
-let nextId = 1;
-
-function findUserByEmail(email) {
-  return users.find((u) => u.email.toLowerCase() === String(email).toLowerCase());
+// Database helper functions
+async function findUserByEmail(email) {
+  if (!email) return null;
+  const [rows] = await pool.query('SELECT * FROM users WHERE email = ? LIMIT 1', [email.toLowerCase()]);
+  return rows[0];
 }
 
-function authMiddleware(req, res, next) {
+async function findUserById(id) {
+  const [rows] = await pool.query('SELECT * FROM users WHERE id = ? LIMIT 1', [id]);
+  return rows[0];
+}
+
+async function authMiddleware(req, res, next) {
   const authHeader = req.headers.authorization || '';
   const [scheme, token] = authHeader.split(' ');
 
   if (scheme !== 'Bearer' || !token) {
     return res.status(401).json({ error: 'Missing or malformed Authorization header' });
   }
-  if (revokedTokens.has(token)) {
-    return res.status(401).json({ error: 'Token has been revoked' });
-  }
+
   try {
+    // Check if token is revoked
+    const [revoked] = await pool.query('SELECT token FROM revoked_tokens WHERE token = ? LIMIT 1', [token]);
+    if (revoked.length > 0) {
+      return res.status(401).json({ error: 'Token has been revoked' });
+    }
+
     const payload = jwt.verify(token, JWT_SECRET);
     req.user = payload;
     req.token = token;
@@ -63,11 +85,16 @@ function authMiddleware(req, res, next) {
   }
 }
 
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', users: users.length });
+app.get('/api/health', async (req, res) => {
+  try {
+    const [[{ count }]] = await pool.query('SELECT COUNT(*) as count FROM users');
+    res.json({ status: 'ok', users: count });
+  } catch (err) {
+    res.status(500).json({ status: 'error', message: err.message });
+  }
 });
 
-app.post('/api/auth/register', (req, res) => {
+app.post('/api/auth/register', async (req, res) => {
   const { email, password } = req.body || {};
 
   if (!email || !password) {
@@ -76,111 +103,158 @@ app.post('/api/auth/register', (req, res) => {
   if (password.length < 6) {
     return res.status(400).json({ error: 'password must be at least 6 characters' });
   }
-  if (findUserByEmail(email)) {
-    return res.status(409).json({ error: 'A user with this email already exists' });
+
+  try {
+    const existingUser = await findUserByEmail(email);
+    if (existingUser) {
+      return res.status(409).json({ error: 'A user with this email already exists' });
+    }
+
+    const passwordHash = await bcrypt.hash(password, BCRYPT_SALT_ROUNDS);
+    
+    // In this practice app we store plaintext password for demonstration in /api/users
+    const [result] = await pool.query(
+      'INSERT INTO users (email, password, password_hash) VALUES (?, ?, ?)',
+      [email.toLowerCase(), password, passwordHash]
+    );
+
+    return res.status(201).json({ id: result.insertId, email });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
   }
-
-  const passwordHash = bcrypt.hashSync(password, 8);
-  // NOTE: storing the plaintext password too is only for this practice app, so
-  // GET /api/users can show it for learning purposes. Never do this in a real system.
-  const user = { id: nextId++, email, password, passwordHash };
-  users.push(user);
-
-  return res.status(201).json({ id: user.id, email: user.email });
 });
 
-app.post('/api/auth/login', (req, res) => {
+app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body || {};
 
   if (!email || !password) {
     return res.status(400).json({ error: 'email and password are required' });
   }
 
-  const user = findUserByEmail(email);
-  if (!user || !bcrypt.compareSync(password, user.passwordHash)) {
-    return res.status(401).json({ error: 'Invalid email or password' });
+  try {
+    const user = await findUserByEmail(email);
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid email or password' });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password_hash);
+    if (!isMatch) {
+      return res.status(401).json({ error: 'Invalid email or password' });
+    }
+
+    const token = jwt.sign({ sub: user.id, email: user.email }, JWT_SECRET, {
+      expiresIn: '1h',
+    });
+
+    return res.json({ token, user: { id: user.id, email: user.email } });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
   }
-
-  const token = jwt.sign({ sub: user.id, email: user.email }, JWT_SECRET, {
-    expiresIn: '1h',
-  });
-
-  return res.json({ token, user: { id: user.id, email: user.email } });
 });
 
-app.get('/api/auth/profile', authMiddleware, (req, res) => {
-  const user = users.find((u) => u.id === req.user.sub);
-  if (!user) return res.status(404).json({ error: 'User not found' });
-  return res.json({ id: user.id, email: user.email });
+app.get('/api/auth/profile', authMiddleware, async (req, res) => {
+  try {
+    const user = await findUserById(req.user.sub);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    return res.json({ id: user.id, email: user.email });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
 });
 
-app.put('/api/auth/profile', authMiddleware, (req, res) => {
-  const user = users.find((u) => u.id === req.user.sub);
-  if (!user) return res.status(404).json({ error: 'User not found' });
-
+app.put('/api/auth/profile', authMiddleware, async (req, res) => {
   const { email, password } = req.body || {};
 
   if (!email && !password) {
     return res.status(400).json({ error: 'Provide an email and/or a password to update' });
   }
 
-  if (email && email.toLowerCase() !== user.email.toLowerCase()) {
-    const existing = findUserByEmail(email);
-    if (existing && existing.id !== user.id) {
-      return res.status(409).json({ error: 'A user with this email already exists' });
+  try {
+    const user = await findUserById(req.user.sub);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    let newEmail = user.email;
+    let newPassword = user.password;
+    let newPasswordHash = user.password_hash;
+
+    if (email && email.toLowerCase() !== user.email.toLowerCase()) {
+      const existing = await findUserByEmail(email);
+      if (existing && existing.id !== user.id) {
+        return res.status(409).json({ error: 'A user with this email already exists' });
+      }
+      newEmail = email.toLowerCase();
     }
-    user.email = email;
-  }
 
-  if (password) {
-    if (password.length < 6) {
-      return res.status(400).json({ error: 'password must be at least 6 characters' });
+    if (password) {
+      if (password.length < 6) {
+        return res.status(400).json({ error: 'password must be at least 6 characters' });
+      }
+      newPassword = password;
+      newPasswordHash = await bcrypt.hash(password, BCRYPT_SALT_ROUNDS);
     }
-    user.password = password;
-    user.passwordHash = bcrypt.hashSync(password, 8);
+
+    await pool.query(
+      'UPDATE users SET email = ?, password = ?, password_hash = ? WHERE id = ?',
+      [newEmail, newPassword, newPasswordHash, user.id]
+    );
+
+    return res.json({ id: user.id, email: newEmail });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
   }
-
-  return res.json({ id: user.id, email: user.email });
 });
 
-app.delete('/api/auth/profile', authMiddleware, (req, res) => {
-  const index = users.findIndex((u) => u.id === req.user.sub);
-  if (index === -1) return res.status(404).json({ error: 'User not found' });
+app.delete('/api/auth/profile', authMiddleware, async (req, res) => {
+  try {
+    const user = await findUserById(req.user.sub);
+    if (!user) return res.status(404).json({ error: 'User not found' });
 
-  users.splice(index, 1);
-  revokedTokens.add(req.token); // the deleted account's token is no longer valid
+    await pool.query('DELETE FROM users WHERE id = ?', [user.id]);
+    await pool.query('INSERT IGNORE INTO revoked_tokens (token) VALUES (?)', [req.token]);
 
-  return res.status(204).send();
+    return res.status(204).send();
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
 });
 
-app.post('/api/auth/logout', authMiddleware, (req, res) => {
-  revokedTokens.add(req.token);
-  return res.json({ message: 'Logged out successfully' });
+app.post('/api/auth/logout', authMiddleware, async (req, res) => {
+  try {
+    await pool.query('INSERT IGNORE INTO revoked_tokens (token) VALUES (?)', [req.token]);
+    return res.json({ message: 'Logged out successfully' });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
 });
 
-app.get('/api/users', (req, res) => {
+app.get('/api/users', async (req, res) => {
   let page = parseInt(req.query.page, 10);
   let limit = parseInt(req.query.limit, 10);
 
   if (!Number.isInteger(page) || page < 1) page = 1;
   if (!Number.isInteger(limit) || limit < 1) limit = 10;
-  if (limit > 100) limit = 100; // guard against someone asking for everything at once
+  if (limit > 100) limit = 100;
 
-  const total = users.length;
-  const totalPages = Math.max(1, Math.ceil(total / limit));
-  const start = (page - 1) * limit;
+  try {
+    const [[{ total }]] = await pool.query('SELECT COUNT(*) AS total FROM users');
+    const totalPages = Math.max(1, Math.ceil(total / limit));
+    const offset = (page - 1) * limit;
 
-  const pageOfUsers = users.slice(start, start + limit);
-  // Returns the full user object (id, email, password, passwordHash) with
-  // no login required — only ever do this in a throwaway local practice app.
+    const [rows] = await pool.query(
+      'SELECT id, email, password, password_hash FROM users LIMIT ? OFFSET ?',
+      [limit, offset]
+    );
 
-  return res.json({
-    data: pageOfUsers,
-    page,
-    limit,
-    total,
-    totalPages,
-  });
+    return res.json({
+      data: rows,
+      page,
+      limit,
+      total,
+      totalPages,
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
 });
 
 app.listen(PORT, () => {

@@ -4,12 +4,16 @@
   "description": "Minimal login API for practicing API test automation with Bruno",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "test:api": "java -jar karate-2.1.2.jar run test/all-tests.feature",
+    "test:perf": "mvn test -f perf-test/pom.xml"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
+    "dotenv": "^17.4.2",
     "express": "^4.19.2",
-    "jsonwebtoken": "^9.0.2"
+    "jsonwebtoken": "^9.0.2",
+    "mysql2": "^3.24.4"
   },
   "devDependencies": {
     "@karatelabs/karate": "^0.3.2"

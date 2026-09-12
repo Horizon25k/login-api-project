@@ -1,0 +1,10 @@
+{
+  "simulation": "gatling.LoginSimulation",
+  "simulationId": "loginsimulation-20260912014939219",
+  "start": 1789177780440,
+  "description": "",
+  "scenarios": ["Find Maximum User Capacity"],
+  "assertions": [
+
+  ]
+}
